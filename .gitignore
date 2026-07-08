@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+venv/
+env/
+.venv/
+db.sqlite3
+*.sqlite3
+.env
+.DS_Store
+data/geocode_cache.json

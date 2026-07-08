@@ -22,14 +22,6 @@ You can access the live, interactive demo of the application here:
   - Skips geocoding entirely when coordinate parameters (`start_lat`/`start_lon`/`finish_lat`/`finish_lon`) are provided, bringing network calls down to exactly one call.
 * **Robust Offline Geocoding & Importer**: Loads fuel stops from OPIS CSV data, caching results to `data/geocode_cache.json` to prevent repeat hits. Includes exponential backoff retry logic for 429 Too Many Requests limits.
 
----
-
-## Screen Showcase
-
-The dark-mode dashboard at the root path (`/`):
-
-![FuelRoute Dashboard](https://raw.githubusercontent.com/manasdutta04/fuel-route-api/main/dashboard_screenshot.png)
-*(Note: Upload your dashboard screenshot to your repository root as `dashboard_screenshot.png` to display it here.)*
 
 ---
 

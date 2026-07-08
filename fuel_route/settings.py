@@ -79,7 +79,7 @@ ROUTE_SAMPLE_INTERVAL_MILES = 5    # how densely we sample the route polyline
 STATION_SEARCH_RADIUS_MILES = 3    # how far off the route a station can be and still count
 OSRM_BASE_URL = 'https://router.project-osrm.org'
 NOMINATIM_BASE_URL = 'https://nominatim.openstreetmap.org'
-NOMINATIM_USER_AGENT = 'fuel-route-assessment (contact: you@example.com)'
+NOMINATIM_USER_AGENT = 'fuel-route-assessment-app-v1-manas'
 
 # Simple local cache so repeated geocoding lookups (e.g. "Chicago, IL" used by
 # many callers) don't re-hit Nominatim.

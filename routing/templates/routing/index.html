@@ -524,7 +524,7 @@
                 <div class="suggestions">
                     <span class="suggestion-chip" onclick="fillRoute('New York, NY', 'Miami, FL')">NY to Miami</span>
                     <span class="suggestion-chip" onclick="fillRoute('Chicago, IL', 'Denver, CO')">Chicago to Denver</span>
-                    <span class="suggestion-chip" onclick="fillRoute('Seattle, WA', 'Los Angeles, CA')">Seattle to LA</span>
+                    <span class="suggestion-chip" onclick="fillRoute('Dallas, TX', 'Chicago, IL')">Dallas to Chicago</span>
                 </div>
 
                 <button type="submit" class="btn-submit">
@@ -613,6 +613,7 @@
         function fillRoute(start, finish) {
             document.getElementById('start').value = start;
             document.getElementById('finish').value = finish;
+            document.getElementById('route-form').requestSubmit();
         }
 
         // Custom markers

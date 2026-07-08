@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FuelRoute - Smart US Route Planner & Fuel Optimizer</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet.js CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+          
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            --bg-main: #0b0f19;
+            --sidebar-bg: rgba(17, 24, 39, 0.75);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --accent-primary: #06b6d4; /* Cyan */
+            --accent-hover: #0891b2;
+            --accent-success: #10b981; /* Emerald */
+            --accent-warning: #f59e0b; /* Amber */
+            --accent-danger: #ef4444; /* Rose */
+            --glow-color: rgba(6, 182, 212, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Sidebar Container */
+        .sidebar {
+            width: 420px;
+            height: 100%;
+            background: var(--sidebar-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+            box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+            flex-shrink: 0;
+        }
+
+        /* Sidebar Header */
+        .header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-icon {
+            color: var(--accent-primary);
+            filter: drop-shadow(0 0 8px var(--accent-primary));
+        }
+
+        /* Content Area inside Sidebar */
+        .sidebar-content {
+            padding: 24px;
+            overflow-y: auto;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Form styling */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-wrapper i {
+            position: absolute;
+            left: 14px;
+            color: var(--text-secondary);
+            width: 18px;
+            height: 18px;
+        }
+
+        .input-wrapper input {
+            width: 100%;
+            padding: 12px 12px 12px 42px;
+            background-color: rgba(31, 41, 55, 0.5);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .input-wrapper input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 12px var(--glow-color);
+            background-color: rgba(31, 41, 55, 0.8);
+        }
+
+        button.btn-submit {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--accent-primary) 0%, #3b82f6 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 14px rgba(6, 182, 212, 0.3);
+        }
+
+        button.btn-submit:hover {
+            opacity: 0.95;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4);
+        }
+
+        button.btn-submit:active {
+            transform: translateY(0);
+        }
+
+        /* Quick-fill links */
+        .suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: -8px;
+            margin-bottom: 8px;
+        }
+
+        .suggestion-chip {
+            font-size: 11px;
+            padding: 4px 8px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .suggestion-chip:hover {
+            color: var(--accent-primary);
+            background-color: rgba(6, 182, 212, 0.1);
+            border-color: rgba(6, 182, 212, 0.3);
+        }
+
+        /* Result Cards */
+        .result-card {
+            background-color: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            display: none;
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        .result-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            background-color: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent-primary);
+        }
+
+        .stat-value.cost {
+            color: var(--accent-success);
+        }
+
+        /* Feasibility Banner */
+        .feasibility-banner {
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .feasibility-banner.success {
+            background-color: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: var(--accent-success);
+        }
+
+        .feasibility-banner.failed {
+            background-color: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: var(--accent-danger);
+        }
+
+        /* Stops Itinerary */
+        .itinerary-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 250px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .itinerary-item {
+            background-color: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .itinerary-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background-color: var(--accent-primary);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .itinerary-item:hover::before {
+            opacity: 1;
+        }
+
+        .itinerary-item:hover {
+            background-color: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateX(2px);
+        }
+
+        .itinerary-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 4px;
+        }
+
+        .station-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 190px;
+        }
+
+        .station-price {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--accent-success);
+        }
+
+        .station-meta {
+            font-size: 11px;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+            margin-top: 4px;
+        }
+
+        /* Map Container */
+        .map-container {
+            flex-grow: 1;
+            height: 100%;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Custom Map Overlay when loading */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(11, 15, 25, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 9;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(6, 182, 212, 0.1);
+            border-top-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            filter: drop-shadow(0 0 8px var(--accent-primary));
+        }
+
+        /* Alert notifications */
+        .alert {
+            background-color: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: var(--accent-danger);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 13px;
+            margin-top: 16px;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        /* Map Popups custom styling */
+        .leaflet-popup-content-wrapper {
+            background-color: #1e293b !important;
+            color: #f3f4f6 !important;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .leaflet-popup-content {
+            margin: 12px !important;
+            line-height: 1.4 !important;
+        }
+
+        .leaflet-popup-tip {
+            background-color: #1e293b !important;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .popup-station-title {
+            font-weight: 700;
+            font-size: 13px;
+            color: var(--accent-primary);
+            margin-bottom: 4px;
+        }
+
+        .popup-detail {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 2px;
+        }
+
+        .popup-highlight {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent-success);
+            margin-top: 6px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding-top: 6px;
+        }
+
+        /* Custom Map Controls */
+        .leaflet-bar {
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            box-shadow: none !important;
+        }
+
+        .leaflet-bar a {
+            background-color: #1e293b !important;
+            color: #f3f4f6 !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+            transition: all 0.2s ease;
+        }
+
+        .leaflet-bar a:hover {
+            background-color: #334155 !important;
+            color: var(--accent-primary) !important;
+        }
+
+        /* Animations */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Custom Scrollbar for Sidebar and Itinerary */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <div class="header">
+            <i data-lucide="fuel" class="logo-icon" width="28" height="28"></i>
+            <h1>FuelRoute Optimizer</h1>
+        </div>
+
+        <div class="sidebar-content">
+            <!-- Route Input Form -->
+            <form id="route-form">
+                <div class="form-group">
+                    <label for="start">Start Location (USA)</label>
+                    <div class="input-wrapper">
+                        <i data-lucide="map-pin"></i>
+                        <input type="text" id="start" placeholder="e.g. Chicago, IL" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="finish">Destination (USA)</label>
+                    <div class="input-wrapper">
+                        <i data-lucide="flag"></i>
+                        <input type="text" id="finish" placeholder="e.g. Denver, CO" required>
+                    </div>
+                </div>
+
+                <div class="suggestions">
+                    <span class="suggestion-chip" onclick="fillRoute('New York, NY', 'Miami, FL')">NY to Miami</span>
+                    <span class="suggestion-chip" onclick="fillRoute('Chicago, IL', 'Denver, CO')">Chicago to Denver</span>
+                    <span class="suggestion-chip" onclick="fillRoute('Seattle, WA', 'Los Angeles, CA')">Seattle to LA</span>
+                </div>
+
+                <button type="submit" class="btn-submit">
+                    <i data-lucide="navigation"></i>
+                    Optimize Route
+                </button>
+            </form>
+
+            <!-- Error Banner -->
+            <div id="error-banner" class="alert">
+                <i data-lucide="alert-triangle"></i>
+                <span id="error-text">An error occurred.</span>
+            </div>
+
+            <!-- RESULT CARD -->
+            <div id="result-card" class="result-card">
+                <div class="result-title">
+                    <i data-lucide="route" class="logo-icon"></i>
+                    <span>Route Summary</span>
+                </div>
+
+                <div id="feasibility-status" class="feasibility-banner success">
+                    <i data-lucide="check-circle-2"></i>
+                    <span>Feasible Route</span>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Total Distance</div>
+                        <div id="stat-distance" class="stat-value">0 mi</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Est. Fuel Cost</div>
+                        <div id="stat-cost" class="stat-value cost">$0.00</div>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 8px;">
+                    <label>Required Fuel Stops</label>
+                </div>
+                
+                <div id="itinerary" class="itinerary-list">
+                    <!-- Dynamic Stops will be injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAP CONTAINER -->
+    <div class="map-container">
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay">
+            <div class="spinner"></div>
+            <p style="font-weight: 500; font-size: 15px; letter-spacing: 0.5px;">Optimizing fuel stops & route...</p>
+        </div>
+        
+        <!-- Leaflet Map Div -->
+        <div id="map"></div>
+    </div>
+
+    <!-- Leaflet.js Library -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // Initialize Leaflet Map centered on US
+        const map = L.map('map', {
+            zoomControl: true
+        }).setView([37.8, -96.9], 4);
+
+        // Add CartoDB Dark Matter map tiles for premium sleek dark mode look
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+
+        // Map layer groups to keep track of drawings
+        let routeLine = null;
+        let markersGroup = L.layerGroup().addTo(map);
+        let stationMarkers = {}; // stores markers indexed by their index/name for pan triggers
+
+        function fillRoute(start, finish) {
+            document.getElementById('start').value = start;
+            document.getElementById('finish').value = finish;
+        }
+
+        // Custom markers
+        const startIcon = L.divIcon({
+            html: '<div style="background-color: #10b981; border: 2px solid #fff; width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 10px #10b981;"></div>',
+            className: 'custom-pin-start',
+            iconSize: [14, 14],
+            iconAnchor: [7, 7]
+        });
+
+        const finishIcon = L.divIcon({
+            html: '<div style="background-color: #ef4444; border: 2px solid #fff; width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 10px #ef4444;"></div>',
+            className: 'custom-pin-finish',
+            iconSize: [14, 14],
+            iconAnchor: [7, 7]
+        });
+
+        const fuelIcon = L.divIcon({
+            html: '<div style="background-color: #06b6d4; border: 2px solid #fff; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 8px #06b6d4; cursor: pointer;"></div>',
+            className: 'custom-pin-fuel',
+            iconSize: [12, 12],
+            iconAnchor: [6, 6]
+        });
+
+        // Trigger pan/fly to marker when clicking itinerary items
+        function focusStation(id) {
+            const marker = stationMarkers[id];
+            if (marker) {
+                map.flyTo(marker.getLatLng(), 11, {
+                    animate: true,
+                    duration: 1.2
+                });
+                setTimeout(() => marker.openPopup(), 1200);
+            }
+        }
+
+        // Handle Form Submit & API request
+        document.getElementById('route-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const startVal = document.getElementById('start').value.trim();
+            const finishVal = document.getElementById('finish').value.trim();
+            
+            // Show Loader, Hide result card and error banner
+            document.getElementById('loading-overlay').style.display = 'flex';
+            document.getElementById('error-banner').style.display = 'none';
+            document.getElementById('result-card').style.display = 'none';
+
+            // Clean up previous layers
+            if (routeLine) {
+                map.removeLayer(routeLine);
+                routeLine = null;
+            }
+            markersGroup.clearLayers();
+            stationMarkers = {};
+
+            try {
+                const response = await fetch('/api/route/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        start: startVal,
+                        finish: finishVal
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Server error occurred while calculating route.');
+                }
+
+                // Render Route on Map
+                const pathCoords = data.route_geometry;
+                if (pathCoords && pathCoords.length > 0) {
+                    routeLine = L.polyline(pathCoords, {
+                        color: '#06b6d4',
+                        weight: 4,
+                        opacity: 0.8,
+                        lineJoin: 'round',
+                        className: 'glowing-route'
+                    }).addTo(map);
+
+                    // Add Start & Finish Markers
+                    const startLatLng = [data.start.lat, data.start.lon];
+                    const finishLatLng = [data.finish.lat, data.finish.lon];
+                    
+                    L.marker(startLatLng, { icon: startIcon })
+                        .bindPopup(`<div class="popup-station-title">Start Point</div><div class="popup-detail">${startVal}</div>`)
+                        .addTo(markersGroup);
+
+                    L.marker(finishLatLng, { icon: finishIcon })
+                        .bindPopup(`<div class="popup-station-title">Destination</div><div class="popup-detail">${finishVal}</div>`)
+                        .addTo(markersGroup);
+
+                    // Auto-fit map boundaries
+                    map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+                }
+
+                // Setup Result Panel
+                document.getElementById('stat-distance').textContent = `${data.total_distance_miles.toFixed(1)} mi`;
+                
+                const feasibilityBanner = document.getElementById('feasibility-status');
+                if (data.feasible) {
+                    feasibilityBanner.className = 'feasibility-banner success';
+                    feasibilityBanner.innerHTML = '<i data-lucide="check-circle-2"></i><span>Feasible Route</span>';
+                    document.getElementById('stat-cost').textContent = `$${data.total_fuel_cost.toFixed(2)}`;
+                    document.getElementById('stat-cost').className = 'stat-value cost';
+                } else {
+                    feasibilityBanner.className = 'feasibility-banner failed';
+                    feasibilityBanner.innerHTML = '<i data-lucide="alert-octagon"></i><span>Not Feasible</span>';
+                    document.getElementById('stat-cost').textContent = 'N/A';
+                    document.getElementById('stat-cost').className = 'stat-value';
+                    
+                    // Show error message inside map or results
+                    if (data.message) {
+                        throw new Error(data.message);
+                    }
+                }
+                lucide.createIcons();
+
+                // Plot fuel stops and build itinerary
+                const itineraryDiv = document.getElementById('itinerary');
+                itineraryDiv.innerHTML = '';
+
+                if (data.fuel_stops && data.fuel_stops.length > 0) {
+                    data.fuel_stops.forEach((stop, index) => {
+                        // Plot marker
+                        const lat = stop.latitude;
+                        const lon = stop.longitude;
+
+                        const stopMarker = L.marker([lat, lon], { icon: fuelIcon })
+                            .bindPopup(`
+                                <div class="popup-station-title">${stop.name}</div>
+                                <div class="popup-detail"><b>Address:</b> ${stop.address}, ${stop.city}, ${stop.state}</div>
+                                <div class="popup-detail"><b>Price:</b> $${stop.price_per_gallon.toFixed(4)}/gal</div>
+                                <div class="popup-detail"><b>Mile Marker:</b> ${stop.mile_marker} mi</div>
+                                <div class="popup-highlight">Purchase: ${stop.gallons_purchased.toFixed(2)} gal ($${stop.cost.toFixed(2)})</div>
+                            `)
+                            .addTo(markersGroup);
+
+                        stationMarkers[index] = stopMarker;
+
+                        // Add to sidebar itinerary
+                        const item = document.createElement('div');
+                        item.className = 'itinerary-item';
+                        item.onclick = () => focusStation(index);
+                        item.innerHTML = `
+                            <div class="itinerary-header">
+                                <span class="station-name" title="${stop.name}">${stop.name}</span>
+                                <span class="station-price">$${stop.price_per_gallon.toFixed(2)}/g</span>
+                            </div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">${stop.city}, ${stop.state}</div>
+                            <div class="station-meta">
+                                <span>Mile ${stop.mile_marker}</span>
+                                <span style="font-weight: 500; color: var(--text-primary);">${stop.gallons_purchased.toFixed(1)} gal • $${stop.cost.toFixed(2)}</span>
+                            </div>
+                        `;
+                        itineraryDiv.appendChild(item);
+                    });
+                } else {
+                    itineraryDiv.innerHTML = '<div style="font-size:12px; color:var(--text-secondary); text-align:center; padding: 20px 0;">No refueling stops needed or available.</div>';
+                }
+
+                // Show result card
+                document.getElementById('result-card').style.display = 'block';
+
+            } catch (err) {
+                // Show Error banner
+                document.getElementById('error-text').textContent = err.message || 'Failed to calculate route.';
+                document.getElementById('error-banner').style.display = 'flex';
+            } finally {
+                // Hide Loader
+                document.getElementById('loading-overlay').style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

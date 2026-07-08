@@ -1,3 +1,4 @@
+from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
@@ -73,6 +74,8 @@ class RouteView(APIView):
                     'city': stop.station['city'],
                     'state': stop.station['state'],
                     'price_per_gallon': float(stop.station['retail_price']),
+                    'latitude': stop.station['latitude'],
+                    'longitude': stop.station['longitude'],
                     'mile_marker': stop.mile_marker,
                     'distance_off_route_miles': stop.distance_off_route,
                     'gallons_purchased': stop.gallons_purchased,
@@ -85,3 +88,10 @@ class RouteView(APIView):
             'message': result['message'],
         }
         return Response(response, status=status.HTTP_200_OK)
+
+
+def home_view(request):
+    """
+    Renders the interactive map dashboard.
+    """
+    return render(request, 'routing/index.html')

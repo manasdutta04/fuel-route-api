@@ -609,6 +609,7 @@
         let routeLine = null;
         let markersGroup = L.layerGroup().addTo(map);
         let stationMarkers = {}; // stores markers indexed by their index/name for pan triggers
+        let activeRequestId = 0;
 
         function fillRoute(start, finish) {
             document.getElementById('start').value = start;
@@ -657,6 +658,10 @@
             const startVal = document.getElementById('start').value.trim();
             const finishVal = document.getElementById('finish').value.trim();
             
+            // Track active request ID to prevent async race conditions
+            activeRequestId++;
+            const thisRequestId = activeRequestId;
+            
             // Show Loader, Hide result card and error banner
             document.getElementById('loading-overlay').style.display = 'flex';
             document.getElementById('error-banner').style.display = 'none';
@@ -683,6 +688,10 @@
                 });
 
                 const data = await response.json();
+
+                if (thisRequestId !== activeRequestId) {
+                    return; // Ignore obsolete request
+                }
 
                 if (!response.ok) {
                     throw new Error(data.error || 'Server error occurred while calculating route.');
@@ -784,12 +793,17 @@
                 document.getElementById('result-card').style.display = 'block';
 
             } catch (err) {
+                if (thisRequestId !== activeRequestId) {
+                    return;
+                }
                 // Show Error banner
                 document.getElementById('error-text').textContent = err.message || 'Failed to calculate route.';
                 document.getElementById('error-banner').style.display = 'flex';
             } finally {
-                // Hide Loader
-                document.getElementById('loading-overlay').style.display = 'none';
+                if (thisRequestId === activeRequestId) {
+                    // Hide Loader
+                    document.getElementById('loading-overlay').style.display = 'none';
+                }
             }
         });
     </script>

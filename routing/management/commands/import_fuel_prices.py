@@ -68,8 +68,9 @@ class Command(BaseCommand):
             key = f'{city}, {state}'
             if key in cache:
                 continue
-            coords = self._geocode(city, state)
-            cache[key] = coords  # may be None if geocoding failed - we still cache that
+            status_code, coords = self._geocode(city, state)
+            if status_code in ('success', 'not_found'):
+                cache[key] = coords  # only cache if we got a definitive success or not-found
             if i % 25 == 0:
                 self.stdout.write(f'  geocoded {i}/{len(unique_places)}...')
                 self._save_cache(cache)  # periodic checkpoint
@@ -123,20 +124,44 @@ class Command(BaseCommand):
         GEOCODE_CACHE_PATH.write_text(json.dumps(cache, indent=2))
 
     def _geocode(self, city, state):
-        """Resolve a city/state to lat/lon via Nominatim. Returns None on failure."""
-        try:
-            resp = requests.get(
-                f'{settings.NOMINATIM_BASE_URL}/search',
-                params={'city': city, 'state': state, 'country': 'USA', 'format': 'json', 'limit': 1},
-                headers={'User-Agent': settings.NOMINATIM_USER_AGENT},
-                timeout=10,
-            )
-            resp.raise_for_status()
-            results = resp.json()
-            if not results:
-                self.stdout.write(self.style.WARNING(f'  no match for {city}, {state}'))
-                return None
-            return {'lat': float(results[0]['lat']), 'lon': float(results[0]['lon'])}
-        except (requests.RequestException, ValueError, KeyError) as exc:
-            self.stdout.write(self.style.WARNING(f'  geocode failed for {city}, {state}: {exc}'))
-            return None
+        """
+        Resolve a city/state to lat/lon via Nominatim.
+        Returns: (status, coords_dict_or_None)
+        """
+        max_retries = 3
+        backoff = 3.0
+
+        for attempt in range(max_retries):
+            try:
+                resp = requests.get(
+                    f'{settings.NOMINATIM_BASE_URL}/search',
+                    params={'city': city, 'state': state, 'country': 'USA', 'format': 'json', 'limit': 1},
+                    headers={'User-Agent': settings.NOMINATIM_USER_AGENT},
+                    timeout=10,
+                )
+                
+                if resp.status_code == 429:
+                    self.stdout.write(self.style.WARNING(
+                        f'  rate-limited (429) for {city}, {state}. Retrying in {backoff}s... (attempt {attempt+1}/{max_retries})'
+                    ))
+                    time.sleep(backoff)
+                    backoff *= 2
+                    continue
+                
+                resp.raise_for_status()
+                results = resp.json()
+                if not results:
+                    self.stdout.write(self.style.WARNING(f'  no match for {city}, {state}'))
+                    return 'not_found', None
+                return 'success', {'lat': float(results[0]['lat']), 'lon': float(results[0]['lon'])}
+            except (requests.RequestException, ValueError, KeyError) as exc:
+                if attempt < max_retries - 1:
+                    self.stdout.write(self.style.WARNING(
+                        f'  geocode attempt {attempt+1} failed for {city}, {state}: {exc}. Retrying in {backoff}s...'
+                    ))
+                    time.sleep(backoff)
+                    backoff *= 2
+                else:
+                    self.stdout.write(self.style.WARNING(f'  geocode failed for {city}, {state}: {exc}'))
+                    return 'error', None
+        return 'error', None
